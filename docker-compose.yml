@@ -16,6 +16,16 @@ services:
     volumes:
       - wandering_table:/var/lib/postgresql/data
 
+  # Локальная заглушка SMTP: письма со сбросом пароля никуда не уходят, а показываются
+  # в веб-интерфейсе на http://localhost:8025. Для `bootRun` на хосте задайте в .env
+  # SPRING_MAIL_HOST=localhost и SPRING_MAIL_PORT=1025.
+  mailpit:
+    image: axllent/mailpit
+    restart: always
+    ports:
+      - "127.0.0.1:1025:1025"
+      - "127.0.0.1:8025:8025"
+
   wandering_table_app:
     build: .
     restart: always
@@ -27,5 +37,12 @@ services:
       # нужно назначить извне (см. app.bootstrap.club-manager-email).
       - CLUB_MANAGER_EMAIL=${CLUB_MANAGER_EMAIL:-}
       - SPRING_DATASOURCE_URL=jdbc:postgresql://wandering_table_db:5432/postgres
+      # Без SPRING_MAIL_HOST приложение поднимается, но код сброса пароля пишется в лог.
+      - SPRING_MAIL_HOST=${SPRING_MAIL_HOST:-mailpit}
+      - SPRING_MAIL_PORT=${SPRING_MAIL_PORT:-1025}
+      - SPRING_MAIL_USERNAME=${SPRING_MAIL_USERNAME:-}
+      - SPRING_MAIL_PASSWORD=${SPRING_MAIL_PASSWORD:-}
+      - MAIL_FROM=${MAIL_FROM:-no-reply@wanderingtable.local}
     depends_on:
       - wandering_table_db
+      - mailpit

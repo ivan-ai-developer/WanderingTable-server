@@ -39,3 +39,29 @@ data class TokenPairResponse(
     val accessToken: String,
     val refreshToken: String
 )
+
+const val RESET_CODE_REGEX = "[0-9]{6}"
+const val RESET_CODE_MESSAGE = "Reset code must be exactly 6 digits."
+
+data class ForgotPasswordRequest(
+    @field:Email(message = "Invalid email format.")
+    val email: String
+)
+
+data class VerifyResetCodeRequest(
+    @field:NotBlank(message = "Email can't be blank.")
+    val email: String,
+    @field:Pattern(regexp = RESET_CODE_REGEX, message = RESET_CODE_MESSAGE)
+    val code: String
+)
+
+data class ResetTokenResponse(
+    val resetToken: String
+)
+
+data class ResetPasswordRequest(
+    @field:NotBlank(message = "Reset token can't be blank.")
+    val resetToken: String,
+    @field:Pattern(regexp = PASSWORD_REGEX, message = PASSWORD_MESSAGE)
+    val newPassword: String
+)

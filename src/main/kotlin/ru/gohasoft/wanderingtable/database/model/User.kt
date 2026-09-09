@@ -25,7 +25,7 @@ data class User(
     var name: String,
     /** Всегда в нормализованном виде: trim + lowercase (см. `AuthService.normalizeEmail`). */
     val email: String,
-    val hashedPassword: String,
+    var hashedPassword: String,
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(
         name = "user_roles",

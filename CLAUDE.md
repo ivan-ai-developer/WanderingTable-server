@@ -37,7 +37,8 @@ Integration tests run against Testcontainers, so Docker must be running; without
 - `controllers/dto/` — request/response DTOs and their mappers (not nested in controllers)
 - `service/` — business rules and authorization (`@PreAuthorize` lives here, not on controllers)
 - `service/strategy/` — pluggable tournament algorithms plus their registries
-- `security/` — `JwtAuthFilter` → `JwtService` → `AuthService`, `SecurityConfig`, `HashEncoder`, `RegisterRateLimiter`, `ClubManagerBootstrap`
+- `security/` — `JwtAuthFilter` → `JwtService` → `AuthService`, `SecurityConfig`, `HashEncoder`, `SlidingWindowRateLimiter` (+ `RegisterRateLimiter`, `PasswordResetRateLimiter`), `ClubManagerBootstrap`
+- `mail/` — `PasswordResetMailer` и две его реализации; какая поднимется, решает `MailConfig`
 - `database/model/`, `database/model/event/`, `database/model/game/`, `database/model/result/` — JPA entities
 - `database/repository/` — Spring Data repositories
 - `GlobalExceptionHandler` — the single place mapping exceptions to HTTP status codes
@@ -61,7 +62,7 @@ Event                  (events)
 
 `GameResult` (`game_results`) is another JOINED hierarchy: `WinLossResult`, `PointsResult`, `PlacementResult`. `Game.resultType` decides which subclass is accepted for its matches.
 
-Supporting entities: `EventParticipant`, `LeagueStanding`, `ChampionshipStanding`, `User`, `UserDevice`, `NewsNote`, `RefreshToken`.
+Supporting entities: `EventParticipant`, `LeagueStanding`, `ChampionshipStanding`, `User`, `UserDevice`, `NewsNote`, `RefreshToken`, `PasswordResetToken`.
 
 ## Key Design Decisions
 
@@ -72,6 +73,10 @@ Supporting entities: `EventParticipant`, `LeagueStanding`, `ChampionshipStanding
 **Concurrency control is in the database, not in service-layer checks.** Read-then-write checks are kept only as fast paths; correctness comes from unique indexes (`users.email`, `(event_id, user_id)`, `(game_event_id, user_id)`, `games.name`, `refresh_tokens.hashed_token`), conditional single-statement `UPDATE`s (seat reservation, status transitions), atomic increments (`league_standings.points`), and `INSERT … ON CONFLICT DO NOTHING` for idempotent row creation.
 
 **Refresh-token rotation** uses a bulk `DELETE … WHERE` returning the affected-row count (`RefreshTokenRepository.consume`). A derived `deleteBy…` would load-then-delete and report the number of *loaded* rows, letting two concurrent refreshes both succeed. Tokens carry a unique `jti`; without it two logins in the same second produced byte-identical JWTs.
+
+**Password reset is a two-step, single-use exchange.** `POST /auth/forgot-password` emails a six-digit code and always answers 204 — a different status for an unknown address would turn the endpoint into a membership oracle. `POST /auth/verify-reset-code` swaps the code for an opaque `resetToken`, `POST /auth/reset-password` spends that token and **deletes every refresh token of the user**, so a stolen old password cannot survive the change through an already-issued session. Both artefacts are rows in `password_reset_tokens` (one table, a `stage` discriminator) rather than JWTs, because they must be revocable and single-use; each is consumed by a delete-by-PK returning the affected row count, so the loser of a race is rejected. The code is hashed with the user id as salt — a bare SHA-256 over a 10^6 keyspace is a rainbow table. Guessing is bounded only by `PasswordResetRateLimiter`: there is no per-row attempt counter, the row is spent on the first check.
+
+**Email is optional.** `spring.mail.*` is deliberately absent from `application.properties`: a present-but-empty `spring.mail.host` would satisfy `@ConditionalOnProperty` and select SMTP with no server. With the host unset (env var `SPRING_MAIL_HOST`), `MailConfig` falls back to `LoggingPasswordResetMailer`, which prints the code — so the app runs, and the whole flow is testable, without SMTP. `docker-compose` ships Mailpit for local dev (web UI on http://localhost:8025).
 
 **Roles** are a `Set<Role>` (`@ElementCollection` + `@Enumerated(STRING)`) — `CLUB_MANAGER`, `PLAYER`, `NEWS_CREATOR`, `GAME_CREATOR`, `TOURNAMENT_CREATOR`. `PLAYER` is granted at registration and can never be removed. Only `CLUB_MANAGER` grants roles; the first one is bootstrapped from `app.bootstrap.club-manager-email`. `JwtAuthFilter` loads roles **from the database on every request** so revocation takes effect immediately rather than after the access token expires.
 
@@ -95,6 +100,9 @@ Supporting entities: `EventParticipant`, `LeagueStanding`, `ChampionshipStanding
 | JWT secret env var | `JWT_SECRET_BASE64` (Base64, ≥32 bytes) |
 | First club manager | `CLUB_MANAGER_EMAIL` → `app.bootstrap.club-manager-email` |
 | Register rate limit | `app.rate-limit.register.*` (per-instance, in-memory) |
+| Password reset rate limit | `app.rate-limit.password-reset.*` (per IP and per email) |
+| Reset code / token TTL | `app.password-reset.code-ttl-minutes` (15) / `.token-ttl-minutes` (10) |
+| SMTP | env `SPRING_MAIL_HOST`, `SPRING_MAIL_PORT`, `SPRING_MAIL_USERNAME`, `SPRING_MAIL_PASSWORD`; sender `MAIL_FROM` |
 | Access / refresh TTL | 15 minutes / 30 days |
 
 ## Testing
