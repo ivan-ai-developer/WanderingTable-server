@@ -40,7 +40,8 @@ class TournamentService(
     private val championshipService: ChampionshipService,
     private val leagueService: LeagueService,
     private val eventService: EventService,
-    private val gameService: GameService
+    private val gameService: GameService,
+    private val eventPushNotificationPublisher: EventPushNotificationPublisher,
 ) {
 
     fun requireById(tournamentId: ObjectId): TournamentEvent =
@@ -125,6 +126,7 @@ class TournamentService(
 
         val saved = tournamentEventRepository.save(event)
         eventParticipantRepository.save(EventParticipant(eventId = saved.id, userId = creatorId))
+        eventPushNotificationPublisher.publishCreated(saved)
         return saved
     }
 

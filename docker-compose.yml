@@ -36,6 +36,8 @@ services:
       # Первый заведующий клуба: роли выдаёт только CLUB_MANAGER, поэтому первого
       # нужно назначить извне (см. app.bootstrap.club-manager-email).
       - CLUB_MANAGER_EMAIL=${CLUB_MANAGER_EMAIL:-}
+      - APP_FIREBASE_PUSH_ENABLED=${APP_FIREBASE_PUSH_ENABLED:-false}
+      - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS:-}
       - SPRING_DATASOURCE_URL=jdbc:postgresql://wandering_table_db:5432/postgres
       # Без SPRING_MAIL_HOST приложение поднимается, но код сброса пароля пишется в лог.
       - SPRING_MAIL_HOST=${SPRING_MAIL_HOST:-mailpit}

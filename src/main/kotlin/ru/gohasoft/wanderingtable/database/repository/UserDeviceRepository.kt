@@ -12,6 +12,8 @@ interface UserDeviceRepository : JpaRepository<UserDevice, String> {
 
     fun findByUserId(userId: String): List<UserDevice>
 
+    fun findByUserIdNot(userId: String): List<UserDevice>
+
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("delete from UserDevice d where d.userId = :userId and d.fcmToken = :fcmToken")
     fun unregister(

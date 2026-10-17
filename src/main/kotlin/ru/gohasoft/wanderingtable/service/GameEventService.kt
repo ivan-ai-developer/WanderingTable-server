@@ -32,7 +32,8 @@ class GameEventService(
     private val gameResultFactory: GameResultFactory,
     private val tournamentProgressService: TournamentProgressService,
     private val eventService: EventService,
-    private val gameService: GameService
+    private val gameService: GameService,
+    private val eventPushNotificationPublisher: EventPushNotificationPublisher,
 ) {
 
     fun requireById(eventId: ObjectId): GameEvent =
@@ -77,6 +78,7 @@ class GameEventService(
         eventParticipantRepository.save(
             EventParticipant(eventId = saved.id, userId = creatorId)
         )
+        eventPushNotificationPublisher.publishCreated(saved)
         return saved as RegularGame
     }
 
