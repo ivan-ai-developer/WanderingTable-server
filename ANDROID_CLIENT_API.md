@@ -304,8 +304,10 @@ Email нормализуется так же, как при регистраци
 
 Клиент выбирает заголовок и текст по локали устройства. Серверная отправка включается
 переменной `APP_FIREBASE_PUSH_ENABLED=true`; Firebase Admin использует Application Default
-Credentials (`GOOGLE_APPLICATION_CREDENTIALS` в локальной среде или identity привязанную к
-окружению при деплое).
+Credentials. В Docker Compose каталог хоста `FIREBASE_SECRETS_DIR` монтируется read-only в
+`/run/secrets`, а `GOOGLE_APPLICATION_CREDENTIALS` указывает на
+`/run/secrets/firebase-service-account.json`. Для `bootRun` укажите в `GOOGLE_APPLICATION_CREDENTIALS`
+путь к service account файлу на хосте.
 
 ---
 

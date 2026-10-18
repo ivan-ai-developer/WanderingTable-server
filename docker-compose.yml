@@ -37,7 +37,7 @@ services:
       # нужно назначить извне (см. app.bootstrap.club-manager-email).
       - CLUB_MANAGER_EMAIL=${CLUB_MANAGER_EMAIL:-}
       - APP_FIREBASE_PUSH_ENABLED=${APP_FIREBASE_PUSH_ENABLED:-false}
-      - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS:-}
+      - GOOGLE_APPLICATION_CREDENTIALS=/run/secrets/firebase-service-account.json
       - SPRING_DATASOURCE_URL=jdbc:postgresql://wandering_table_db:5432/postgres
       # Без SPRING_MAIL_HOST приложение поднимается, но код сброса пароля пишется в лог.
       - SPRING_MAIL_HOST=${SPRING_MAIL_HOST:-mailpit}
@@ -45,6 +45,8 @@ services:
       - SPRING_MAIL_USERNAME=${SPRING_MAIL_USERNAME:-}
       - SPRING_MAIL_PASSWORD=${SPRING_MAIL_PASSWORD:-}
       - MAIL_FROM=${MAIL_FROM:-no-reply@wanderingtable.local}
+    volumes:
+      - ${FIREBASE_SECRETS_DIR:-./secrets}:/run/secrets:ro
     depends_on:
       - wandering_table_db
       - mailpit
